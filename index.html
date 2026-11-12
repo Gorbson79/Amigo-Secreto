@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amigo Secreto 🎁</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px; min-height: 100vh;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #8b1e2d; color: #222;
+  }
+  .card {
+    max-width: 480px; margin: 0 auto; background: #fff8ef;
+    border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  }
+  h1 { margin: 0 0 8px; font-size: 1.6rem; text-align: center; }
+  p { line-height: 1.5; }
+  .muted { color: #666; font-size: .9rem; text-align: center; }
+  button {
+    font: inherit; border: 0; border-radius: 10px; cursor: pointer;
+    padding: 12px 16px; background: #1f6f43; color: #fff; font-weight: 600;
+  }
+  button.secondary { background: #ddd; color: #333; }
+  button.big { width: 100%; font-size: 1.1rem; padding: 16px; margin-top: 12px; }
+  ul { list-style: none; padding: 0; margin: 16px 0; }
+  li {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 0; border-bottom: 1px solid #eadfd0;
+  }
+  li span { font-weight: 600; }
+  .reveal { text-align: center; }
+  .name {
+    font-size: 2.4rem; font-weight: 800; color: #8b1e2d; margin: 16px 0;
+  }
+</style>
+</head>
+<body>
+<main class="card" id="app"></main>
+
+<script>
+// ===== Configuração =====
+const PARTICIPANTES = ["Cris", "Gabriel", "Henrique", "Felipe", "Vera",
+                       "Eliane", "Celso", "Marcelo", "Katia", "Laura"];
+// quem -> lista de nomes que essa pessoa NÃO pode tirar
+const PROIBIDOS = { Laura: ["Katia", "Marcelo"] };
+const CHAVE = "troopio-natal";
+const STORAGE = "amigo-secreto-v1";
+
+// ===== Sorteio =====
+function aleatorio(n) {
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return a[0] % n;
+}
+function embaralhar(lista) {
+  const l = lista.slice();
+  for (let i = l.length - 1; i > 0; i--) {
+    const j = aleatorio(i + 1);
+    [l[i], l[j]] = [l[j], l[i]];
+  }
+  return l;
+}
+// Ciclo único: cada um tira o próximo da lista embaralhada (ninguém tira a si mesmo, sem pares A<->B)
+function sortear() {
+  for (let t = 0; t < 10000; t++) {
+    const l = embaralhar(PARTICIPANTES);
+    const pares = {};
+    l.forEach((p, i) => pares[p] = l[(i + 1) % l.length]);
+    const ok = Object.entries(pares).every(([p, s]) => !(PROIBIDOS[p] || []).includes(s));
+    if (ok) return pares;
+  }
+  throw new Error("Não foi possível sortear com essas restrições");
+}
+
+// ===== Codificação do link (ofuscação simples, não é criptografia) =====
+function codificar(obj) {
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  const k = new TextEncoder().encode(CHAVE);
+  const x = bytes.map((b, i) => b ^ k[i % k.length]);
+  return btoa(String.fromCharCode(...x)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decodificar(str) {
+  const b64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(b64);
+  const k = new TextEncoder().encode(CHAVE);
+  const x = Uint8Array.from(bin, (c, i) => c.charCodeAt(0) ^ k[i % k.length]);
+  return JSON.parse(new TextDecoder().decode(x));
+}
+function linkDe(participante, sorteado) {
+  const base = location.origin + location.pathname;
+  return base + "#" + codificar({ p: participante, s: sorteado });
+}
+
+// ===== Telas =====
+const app = document.getElementById("app");
+
+function telaRevelacao(dados) {
+  app.innerHTML = `
+    <div class="reveal">
+      <h1>🎁 Amigo Secreto</h1>
+      <p>Olá, <strong></strong>!</p>
+      <p>Toque no botão para ver quem você tirou.<br>Não mostre para ninguém! 🤫</p>
+      <button class="big" id="ver">Ver meu amigo secreto</button>
+      <div id="resultado" hidden>
+        <p>Seu amigo secreto é:</p>
+        <div class="name"></div>
+      </div>
+    </div>`;
+  app.querySelector("strong").textContent = dados.p;
+  app.querySelector(".name").textContent = dados.s;
+  document.getElementById("ver").onclick = (e) => {
+    e.target.hidden = true;
+    document.getElementById("resultado").hidden = false;
+  };
+}
+
+function carregar() {
+  try { return JSON.parse(localStorage.getItem(STORAGE)); } catch { return null; }
+}
+function salvar(pares) {
+  try { localStorage.setItem(STORAGE, JSON.stringify(pares)); } catch {}
+}
+
+async function copiar(texto, botao) {
+  try {
+    await navigator.clipboard.writeText(texto);
+  } catch {
+    const t = document.createElement("textarea");
+    t.value = texto; document.body.appendChild(t); t.select();
+    document.execCommand("copy"); t.remove();
+  }
+  const antigo = botao.textContent;
+  botao.textContent = "Copiado ✓";
+  setTimeout(() => botao.textContent = antigo, 1500);
+}
+
+function telaOrganizador() {
+  const pares = carregar();
+  if (!pares) {
+    app.innerHTML = `
+      <h1>🎁 Amigo Secreto</h1>
+      <p class="muted">${PARTICIPANTES.join(", ")}</p>
+      <button class="big" id="sortear">Fazer sorteio</button>`;
+    document.getElementById("sortear").onclick = () => { salvar(sortear()); telaOrganizador(); };
+    return;
+  }
+  app.innerHTML = `
+    <h1>🎁 Sorteio feito!</h1>
+    <p class="muted">Copie a mensagem de cada pessoa e envie pelo WhatsApp.<br>Os nomes sorteados ficam escondidos.</p>
+    <ul id="lista"></ul>
+    <button class="secondary big" id="refazer">Refazer sorteio</button>`;
+  const ul = document.getElementById("lista");
+  PARTICIPANTES.forEach((p) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span></span><button>Copiar mensagem</button>`;
+    li.querySelector("span").textContent = p;
+    const msg = `Oi ${p}! 🎁 Clique para ver quem você tirou no amigo secreto: ${linkDe(p, pares[p])}`;
+    li.querySelector("button").onclick = (e) => copiar(msg, e.target);
+    ul.appendChild(li);
+  });
+  const refazer = document.getElementById("refazer");
+  refazer.onclick = () => {
+    if (refazer.dataset.confirmar) {
+      try { localStorage.removeItem(STORAGE); } catch {}
+      telaOrganizador();
+    } else {
+      refazer.dataset.confirmar = "1";
+      refazer.textContent = "Tem certeza? Os links antigos deixam de valer. Toque de novo.";
+    }
+  };
+}
+
+// ===== Início =====
+const hash = location.hash.slice(1);
+if (hash) {
+  try { telaRevelacao(decodificar(hash)); }
+  catch { app.innerHTML = "<h1>🎁 Amigo Secreto</h1><p>Link inválido. Peça um novo para o organizador.</p>"; }
+} else {
+  telaOrganizador();
+}
+</script>
+</body>
+</html>
