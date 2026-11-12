@@ -174,12 +174,15 @@ function telaOrganizador() {
 
 // ===== Início =====
 const hash = location.hash.slice(1);
-if (hash) {
+if (hash === "organizador") {
+  telaOrganizador();
+} else if (hash) {
   try { telaRevelacao(decodificar(hash)); }
   catch { app.innerHTML = "<h1>🎁 Amigo Secreto</h1><p>Link inválido. Peça um novo para o organizador.</p>"; }
 } else {
-  telaOrganizador();
+  app.innerHTML = "<h1>🎁 Amigo Secreto</h1><p class=\"muted\">Use o link que você recebeu pelo WhatsApp para ver seu amigo secreto.</p>";
 }
+addEventListener("hashchange", () => location.reload());
 </script>
 </body>
 </html>

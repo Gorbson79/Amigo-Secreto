@@ -23,8 +23,9 @@ Cris, Gabriel, Henrique, Felipe, Vera, Eliane, Celso, Marcelo, Katia, Laura.
 
 | Página | URL | Quem usa | Função |
 |---|---|---|---|
-| Organizador | `gorbson79.github.io/Amigo-Secreto/` | Organizador | Faz o sorteio e lista "Link do X → [Enviar no WhatsApp]" |
+| Organizador | `gorbson79.github.io/Amigo-Secreto/#organizador` | Organizador | Faz o sorteio e lista "Link do X → [Enviar no WhatsApp]" |
 | Revelação | `gorbson79.github.io/Amigo-Secreto/#<código>` | Participante | Mostra "Olá, X! Seu amigo secreto é…" e revela o nome ao tocar no botão |
+| Inicial | `gorbson79.github.io/Amigo-Secreto/` | Qualquer um | Só mostra "use o link que você recebeu" (não permite sortear) |
 
 ## Sigilo
 
